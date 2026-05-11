@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('systemPrompt', systemPrompt);
             }
 
-            const response = await fetch('/api/convert-docx', {
+            const response = await fetch('https://sonnh-onluyen-pj.onrender.com/api/convert-docx', {
                 method: 'POST',
                 body: formData
             });
