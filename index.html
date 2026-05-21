@@ -42,6 +42,18 @@
                 <p>So sánh dữ liệu hệ thống với đề thi gốc để phát hiện sai sót.</p>
             </div>
 
+            <div class="settings-container" style="margin-bottom: 24px;">
+                <div class="input-group">
+                    <label for="qa-gemini-api-key">Gemini API Key</label>
+                    <input type="password" id="qa-gemini-api-key" placeholder="Nhập API Key của bạn (Key chỉ lưu trên trình duyệt)...">
+                </div>
+                <div class="input-group">
+                    <label for="qa-system-prompt">System Prompt</label>
+                    <textarea id="qa-system-prompt" rows="3" placeholder="Nhập prompt kiểm tra của bạn...">Bạn là một chuyên gia kiểm tra đề thi. Nhiệm vụ của bạn là kiểm tra, đối chiếu sự khác biệt giữa 2 file PDF được cung cấp (File UI hệ thống và File đề gốc) và báo cáo lỗi chi tiết.
+Hãy so sánh từng câu hỏi, đáp án và định dạng, chỉ ra chính xác điểm nào sai lệch.</textarea>
+                </div>
+            </div>
+
             <div class="upload-container">
                 <div class="upload-zone" id="zone-sys">
                     <div class="zone-header">
@@ -74,6 +86,15 @@
                 Bắt đầu quy trình kiểm tra
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
             </button>
+
+            <!-- Kết quả kiểm tra -->
+            <div id="qa-result-container" style="display: none; margin-top: 24px;">
+                <div class="col-header" style="margin-bottom: 12px;">
+                    <h3>Kết quả AI</h3>
+                </div>
+                <div id="qa-response-box" class="chatbox-output" style="min-height: 150px; padding: 16px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; white-space: pre-wrap; font-family: inherit; line-height: 1.5;">
+                </div>
+            </div>
         </section>
 
         <!-- View: Convert để XML -->

@@ -106,9 +106,50 @@ document.addEventListener('DOMContentLoaded', () => {
     setupDragAndDrop(dropSys, fileSysInput, 'sys');
     setupDragAndDrop(dropOrig, fileOrigInput, 'orig');
 
+    // --- CẤU HÌNH GEMINI API CHO TÍNH NĂNG KIỂM TRA (VIEW 1) ---
+    const qaApiKeyInput = document.getElementById('qa-gemini-api-key');
+    const qaSystemPromptInput = document.getElementById('qa-system-prompt');
+
+    // Load saved settings for QA View from localStorage
+    if (localStorage.getItem('qa_gemini_api_key')) {
+        qaApiKeyInput.value = localStorage.getItem('qa_gemini_api_key');
+    }
+    if (localStorage.getItem('qa_system_prompt')) {
+        qaSystemPromptInput.value = localStorage.getItem('qa_system_prompt');
+    }
+
+    // Save settings to localStorage on input
+    qaApiKeyInput.addEventListener('input', (e) => localStorage.setItem('qa_gemini_api_key', e.target.value));
+    qaSystemPromptInput.addEventListener('input', (e) => localStorage.setItem('qa_system_prompt', e.target.value));
+
+    // Hàm chuyển file sang base64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => {
+                let encoded = reader.result.toString().replace(/^data:(.*,)?/, '');
+                if ((encoded.length % 4) > 0) {
+                    encoded += '='.repeat(4 - (encoded.length % 4));
+                }
+                resolve(encoded);
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+
     // Process button click
-    btnProcess.addEventListener('click', () => {
+    btnProcess.addEventListener('click', async () => {
         if (!sysFile || !origFile) return;
+
+        const qaApiKey = qaApiKeyInput.value.trim();
+        const qaSystemPrompt = qaSystemPromptInput.value.trim();
+
+        if (!qaApiKey) {
+            alert("Vui lòng nhập Gemini API Key vào ô cấu hình để chạy tính năng này!");
+            qaApiKeyInput.focus();
+            return;
+        }
 
         btnProcess.innerHTML = 'Đang xử lý... <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>';
         btnProcess.disabled = true;
@@ -121,12 +162,88 @@ document.addEventListener('DOMContentLoaded', () => {
             document.head.appendChild(style);
         }
 
-        // Simulate API call
-        setTimeout(() => {
-            alert('Xử lý thành công!');
+        const resultContainer = document.getElementById('qa-result-container');
+        const responseBox = document.getElementById('qa-response-box');
+        
+        if (resultContainer && responseBox) {
+            resultContainer.style.display = 'block';
+            responseBox.innerHTML = 'Đang phân tích 2 file PDF và gửi tới Gemini 3.1 Pro Preview...\n(Việc này có thể mất từ 15 đến 60 giây tuỳ dung lượng file)';
+            responseBox.style.color = 'inherit';
+        }
+
+        try {
+            const sysBase64 = await fileToBase64(sysFile);
+            const origBase64 = await fileToBase64(origFile);
+
+            const requestBody = {
+                contents: [
+                    {
+                        parts: [
+                            { text: qaSystemPrompt },
+                            { text: "File 1: File hệ thống (sysFile):" },
+                            {
+                                inline_data: {
+                                    mime_type: "application/pdf",
+                                    data: sysBase64
+                                }
+                            },
+                            { text: "File 2: File gốc (origFile):" },
+                            {
+                                inline_data: {
+                                    mime_type: "application/pdf",
+                                    data: origBase64
+                                }
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            // Đổi sang model gemini-3.1-pro-preview
+            let apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent`;
+            if (qaApiKey) {
+                apiUrl += `?key=${qaApiKey}`;
+            }
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error?.message || "Lỗi khi gọi Gemini API");
+            }
+
+            const data = await response.json();
+            
+            if (data.candidates && data.candidates.length > 0) {
+                let text = data.candidates[0].content.parts[0].text;
+                if (responseBox) {
+                    responseBox.innerHTML = text;
+                } else {
+                    alert("Hoàn thành! Bạn vui lòng xem log console do không tìm thấy ô hiển thị.");
+                    console.log(text);
+                }
+            } else {
+                if (responseBox) responseBox.innerHTML = "Không nhận được phản hồi từ AI.";
+            }
+
+        } catch (error) {
+            console.error(error);
+            if (responseBox) {
+                responseBox.style.color = '#dc2626';
+                responseBox.innerHTML = `Lỗi: ${error.message}`;
+            } else {
+                alert(`Lỗi: ${error.message}`);
+            }
+        } finally {
             btnProcess.innerHTML = 'Bắt đầu quy trình kiểm tra <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>';
             btnProcess.disabled = false;
-        }, 2000);
+        }
     });
 
     // --- Logic for Convert Docx using Gemini API ---
